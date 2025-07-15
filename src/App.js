@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Form, Button, Card, Row, Col, Image } from 'react-bootstrap';
 import html2canvas from 'html2canvas';
@@ -75,7 +75,7 @@ function App() {
     'Envío 3': 500,
   };
 
-  const calcular = () => {
+  const calcular = useCallback(() => {
     const numCantidadPiezas = parseFloat(cantidadPiezas);
     const numPiezasPorPliego = parseFloat(piezasPorPliego);
     const numMerma = parseFloat(merma);
@@ -121,12 +121,12 @@ function App() {
     // Sumar el 'Otro' costo al total
     const totalCosto = costoMaterial + costoLaminado + costoAcabadosSum + costoEnvio + (isNaN(numOtroCosto) ? 0 : numOtroCosto);
     setCostoTotal(totalCosto);
-  };
+  }, [cantidadPiezas, piezasPorPliego, merma, material, clientType, laminado, acabado1, costoAcabado1, acabado2, costoAcabado2, acabado3, costoAcabado3, otroCosto, envio]); // Dependencias de useCallback
 
   // useEffect para recalcular automáticamente cuando cambian las dependencias
   useEffect(() => {
     calcular();
-  }, [calcular, clientType, cantidadPiezas, piezasPorPliego, merma, material, laminado, acabado1, costoAcabado1, acabado2, costoAcabado2, acabado3, costoAcabado3, otroCosto, otroCostoDescripcion, envio]);
+  }, [calcular]); // Ahora solo depende de la función memorizada 'calcular'
 
   const handleDownloadPdf = () => {
     if (cardRef.current) {
