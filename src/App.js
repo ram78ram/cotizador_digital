@@ -126,7 +126,7 @@ function App() {
   // useEffect para recalcular automáticamente cuando cambian las dependencias
   useEffect(() => {
     calcular();
-  }, [clientType, cantidadPiezas, piezasPorPliego, merma, material, laminado, acabado1, costoAcabado1, acabado2, costoAcabado2, acabado3, costoAcabado3, otroCosto, otroCostoDescripcion, envio]);
+  }, [calcular, clientType, cantidadPiezas, piezasPorPliego, merma, material, laminado, acabado1, costoAcabado1, acabado2, costoAcabado2, acabado3, costoAcabado3, otroCosto, otroCostoDescripcion, envio]);
 
   const handleDownloadPdf = () => {
     if (cardRef.current) {
