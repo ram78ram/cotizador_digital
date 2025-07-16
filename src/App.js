@@ -100,6 +100,11 @@ function App() {
     setCurrentProduct(updatedProduct);
   }, []);
 
+  // Función para eliminar un producto de la cotización
+  const handleDeleteProduct = useCallback((idToDelete) => {
+    setQuotedProducts(prevProducts => prevProducts.filter(product => product.id !== idToDelete));
+  }, []);
+
   // Calcular el costo total general y pliegos totales generales de los productos cotizados
   useEffect(() => {
     const newTotalCostoGeneral = quotedProducts.reduce((sum, product) => sum + product.costoTotal, 0);
@@ -289,6 +294,7 @@ function App() {
                       <li>Pliegos Totales: {product.pliegosTotales.toFixed(0)}</li>
                       <li>Costo Individual: <strong>${product.costoTotal.toFixed(2)}</strong></li>
                     </ul>
+                    <Button variant="danger" size="sm" onClick={() => handleDeleteProduct(product.id)} className="mt-2">Eliminar</Button>
                   </Card.Body>
                 </Card>
               ))}
