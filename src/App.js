@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Form, Button, Card, Row, Col, Image } from 'react-bootstrap';
 import html2canvas from 'html2canvas';
@@ -29,7 +29,7 @@ function App() {
 
   const cardRef = useRef(); // Referencia para la tarjeta que queremos convertir a PDF
 
-  const materialesPublico = {
+  const materialesPublico = useMemo(() => ({
     'COUCHE 150 GRS FTE': 9.00,
     'COUCHE 150 GRS FTE Y VTA': 18.00,
     'COUCHE 200, 250 y 300 GRS FTE': 10.00,
@@ -43,9 +43,9 @@ function App() {
     'OPALINA 120 G. FTE Y VTA': 18.00,
     'OPALINA 225 G.FTE': 10.00,
     'OPALINA 225 G. FTE Y VTA': 20.00,
-  };
+  }), []);
 
-  const materialesVIP = {
+  const materialesVIP = useMemo(() => ({
     'COUCHE 150 GRS FTE': 8.00,
     'COUCHE 150 GRS FTE Y VTA': 16.00,
     'COUCHE 200, 250 y 300 GRS FTE': 9.00,
@@ -59,21 +59,21 @@ function App() {
     'OPALINA 120 G. FTE Y VTA': 16.00,
     'OPALINA 225 G.FTE': 9.00,
     'OPALINA 225 G. FTE Y VTA': 18.00,
-  };
+  }), []);
 
-  const costosAcabados = {
+  const costosAcabados = useMemo(() => ({
     'CORTE': [100, 200, 300],
     'PLECA': [100, 200, 300],
     'GRAPA': [200, 300, 500],
     'HOTMELT': [500, 800, 1200],
     'SUAJE': [400, 800, 1200],
-  };
+  }), []);
 
-  const costosEnvio = {
+  const costosEnvio = useMemo(() => ({
     'Envío 1': 100,
     'Envío 2': 200,
     'Envío 3': 500,
-  };
+  }), []);
 
   const calcular = useCallback(() => {
     const numCantidadPiezas = parseFloat(cantidadPiezas);
@@ -126,7 +126,7 @@ function App() {
   // useEffect para recalcular automáticamente cuando cambian las dependencias
   useEffect(() => {
     calcular();
-  }, [calcular]); // Ahora solo depende de la función memorizada 'calcular'
+  }, [calcular]);
 
   const handleDownloadPdf = () => {
     if (cardRef.current) {
