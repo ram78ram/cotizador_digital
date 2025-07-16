@@ -1,33 +1,29 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Container, Form, Button, Card, Row, Col, Image } from 'react-bootstrap';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import './App.css';
+import ProductForm from './ProductForm'; // Importar el nuevo componente
 
 function App() {
-  const [clientType, setClientType] = useState(''); // Nuevo estado para el tipo de cliente
+  const [clientType, setClientType] = useState('');
   const [cliente, setCliente] = useState('');
   const [proyecto, setProyecto] = useState('');
-  const [cantidadPiezas, setCantidadPiezas] = useState('');
-  const [piezasPorPliego, setPiezasPorPliego] = useState('');
-  const [merma, setMerma] = useState('');
-  const [material, setMaterial] = useState('');
-  const [laminado, setLaminado] = useState('');
-  const [acabado1, setAcabado1] = useState('');
-  const [costoAcabado1, setCostoAcabado1] = useState('');
-  const [acabado2, setAcabado2] = useState('');
-  const [costoAcabado2, setCostoAcabado2] = useState('');
-  const [acabado3, setAcabado3] = useState('');
-  const [costoAcabado3, setCostoAcabado3] = useState('');
-  const [otroCosto, setOtroCosto] = useState(''); // Estado para el valor numérico de 'Otro' costo
-  const [otroCostoDescripcion, setOtroCostoDescripcion] = useState(''); // Nuevo estado para la descripción de 'Otro' costo
-  const [envio, setEnvio] = useState('');
+  
+  // Estado para el producto actual que se está editando
+  const [currentProduct, setCurrentProduct] = useState({
+    id: 1, cantidadPiezas: '', piezasPorPliego: '', merma: '', material: '', laminado: '', 
+    acabado1: '', costoAcabado1: '', acabado2: '', costoAcabado2: '', acabado3: '', costoAcabado3: '', 
+    otroCosto: '', otroCostoDescripcion: '', envio: '', pliegosTotales: 0, costoTotal: 0
+  });
 
-  const [pliegosTotales, setPliegosTotales] = useState(0);
-  const [costoTotal, setCostoTotal] = useState(0);
+  // Estado para los productos ya cotizados
+  const [quotedProducts, setQuotedProducts] = useState([]);
 
-  const cardRef = useRef(); // Referencia para la tarjeta que queremos convertir a PDF
+  const [totalCostoGeneral, setTotalCostoGeneral] = useState(0);
+  const [totalPliegosGeneral, setTotalPliegosGeneral] = useState(0);
+
+  const cardRef = useRef();
 
   const materialesPublico = useMemo(() => ({
     'COUCHE 150 GRS FTE': 9.00,
@@ -75,99 +71,137 @@ function App() {
     'Envío 3': 500,
   }), []);
 
-  const calcular = useCallback(() => {
-    const numCantidadPiezas = parseFloat(cantidadPiezas);
-    const numPiezasPorPliego = parseFloat(piezasPorPliego);
-    const numMerma = parseFloat(merma);
-    const numOtroCosto = parseFloat(otroCosto); // Obtener el valor de 'Otro' costo
+  // Función para añadir el producto actual a la lista de cotizados
+  const handleAddProductToQuote = () => {
+    if (currentProduct.cantidadPiezas && currentProduct.piezasPorPliego && currentProduct.material) {
+      setQuotedProducts(prev => [...prev, { ...currentProduct, id: Date.now() }]);
+      // Resetear el formulario actual para una nueva entrada
+      setCurrentProduct({
+        id: 1, cantidadPiezas: '', piezasPorPliego: '', merma: '', material: '', laminado: '', 
+        acabado1: '', costoAcabado1: '', acabado2: '', costoAcabado2: '', acabado3: '', costoAcabado3: '', 
+        otroCosto: '', otroCostoDescripcion: '', envio: '', pliegosTotales: 0, costoTotal: 0
+      });
+    } else {
+      alert("Por favor, complete al menos Cantidad de Piezas, Piezas por Pliego y Material para añadir a la cotización.");
+    }
+  };
 
-    if (isNaN(numCantidadPiezas) || isNaN(numPiezasPorPliego) || numPiezasPorPliego === 0) {
-      setPliegosTotales(0);
-      setCostoTotal(0);
+  // Función para limpiar solo los campos del formulario actual
+  const handleClearForm = () => {
+    setCurrentProduct({
+      id: 1, cantidadPiezas: '', piezasPorPliego: '', merma: '', material: '', laminado: '', 
+      acabado1: '', costoAcabado1: '', acabado2: '', costoAcabado2: '', acabado3: '', costoAcabado3: '', 
+      otroCosto: '', otroCostoDescripcion: '', envio: '', pliegosTotales: 0, costoTotal: 0
+    });
+  };
+
+  // Función para actualizar el producto actual
+  const handleCurrentProductChange = useCallback((updatedProduct) => {
+    setCurrentProduct(updatedProduct);
+  }, []);
+
+  // Calcular el costo total general y pliegos totales generales de los productos cotizados
+  useEffect(() => {
+    const newTotalCostoGeneral = quotedProducts.reduce((sum, product) => sum + product.costoTotal, 0);
+    const newTotalPliegosGeneral = quotedProducts.reduce((sum, product) => sum + product.pliegosTotales, 0);
+    setTotalCostoGeneral(newTotalCostoGeneral);
+    setTotalPliegosGeneral(newTotalPliegosGeneral);
+  }, [quotedProducts]);
+
+  const handleDownloadPdf = () => {
+    if (quotedProducts.length === 0) {
+      alert("Agregue al menos un producto a la cotización para generar el PDF.");
       return;
     }
 
-    const pliegosBase = Math.ceil(numCantidadPiezas / numPiezasPorPliego);
-    const totalPliegos = pliegosBase + (isNaN(numMerma) ? 0 : numMerma);
-    setPliegosTotales(totalPliegos);
+    const doc = new jsPDF();
+    let yPos = 10; // Posición inicial Y
 
-    // Seleccionar los precios de materiales según el tipo de cliente
-    const currentMateriales = clientType === 'VIP' ? materialesVIP : materialesPublico;
+    // Información del Cliente y Proyecto
+    doc.setFontSize(16);
+    doc.text(`Cliente: ${cliente || 'N/A'}`, 10, yPos);
+    yPos += 7;
+    doc.text(`Proyecto: ${proyecto || 'N/A'}`, 10, yPos);
+    yPos += 15;
 
-    let costoMaterial = 0;
-    if (material && currentMateriales[material]) {
-      costoMaterial = totalPliegos * currentMateriales[material];
+    // Productos Cotizados
+    doc.setFontSize(14);
+    doc.text("Productos Cotizados:", 10, yPos);
+    yPos += 10;
+
+    quotedProducts.forEach((product, index) => {
+      if (yPos > 280) { // Si se acerca al final de la página, añade una nueva
+        doc.addPage();
+        yPos = 10; // Reinicia la posición Y en la nueva página
+      }
+
+      doc.setFontSize(12);
+      doc.text(`Producto ${index + 1}:`, 15, yPos);
+      yPos += 7;
+      doc.setFontSize(10);
+      doc.text(`  Cantidad de Piezas: ${product.cantidadPiezas}`, 20, yPos);
+      yPos += 5;
+      doc.text(`  Piezas por Pliego: ${product.piezasPorPliego}`, 20, yPos);
+      yPos += 5;
+      doc.text(`  Merma: ${product.merma || '0'}`, 20, yPos);
+      yPos += 5;
+      doc.text(`  Material: ${product.material}`, 20, yPos);
+      yPos += 5;
+      if (product.laminado) {
+        doc.text(`  Laminado: ${product.laminado}`, 20, yPos);
+        yPos += 5;
+      }
+      if (product.acabado1) {
+        doc.text(`  Acabado 1: ${product.acabado1} (${product.costoAcabado1})`, 20, yPos);
+        yPos += 5;
+      }
+      if (product.acabado2) {
+        doc.text(`  Acabado 2: ${product.acabado2} (${product.costoAcabado2})`, 20, yPos);
+        yPos += 5;
+      }
+      if (product.acabado3) {
+        doc.text(`  Acabado 3: ${product.acabado3} (${product.costoAcabado3})`, 20, yPos);
+        yPos += 5;
+      }
+      if (product.otroCosto) {
+        doc.text(`  Otro Costo: $${parseFloat(product.otroCosto).toFixed(2)} (${product.otroCostoDescripcion})`, 20, yPos);
+        yPos += 5;
+      }
+      if (product.envio) {
+        doc.text(`  Envío: ${product.envio}`, 20, yPos);
+        yPos += 5;
+      }
+      doc.text(`  Pliegos Totales: ${product.pliegosTotales.toFixed(0)}`, 20, yPos);
+      yPos += 5;
+      doc.text(`  Costo Individual: $${product.costoTotal.toFixed(2)}`, 20, yPos);
+      yPos += 10; // Espacio entre productos
+    });
+
+    // Totales Generales
+    if (yPos > 270) { // Si se acerca al final de la página, añade una nueva
+      doc.addPage();
+      yPos = 10; // Reinicia la posición Y en la nueva página
     }
+    doc.setFontSize(14);
+    doc.text("Resumen General:", 10, yPos);
+    yPos += 7;
+    doc.setFontSize(12);
+    doc.text(`Pliegos totales (incluyendo merma): ${totalPliegosGeneral.toFixed(0)}`, 15, yPos);
+    yPos += 7;
+    doc.text(`Costo total estimado: $${totalCostoGeneral.toFixed(2)}`, 15, yPos);
 
-    let costoLaminado = 0;
-    if (laminado === 'FTE') {
-      costoLaminado = totalPliegos * 5;
-    } else if (laminado === 'FTE y VTA') {
-      costoLaminado = totalPliegos * 9;
-    } else if (laminado === 'Minimo') {
-      costoLaminado = 700;
-    }
-
-    let costoAcabadosSum = 0;
-    if (costoAcabado1) costoAcabadosSum += parseFloat(costoAcabado1);
-    if (costoAcabado2) costoAcabadosSum += parseFloat(costoAcabado2);
-    if (costoAcabado3) costoAcabadosSum += parseFloat(costoAcabado3);
-
-    let costoEnvio = 0;
-    if (envio && costosEnvio[envio]) {
-      costoEnvio = costosEnvio[envio];
-    }
-
-    // Sumar el 'Otro' costo al total
-    const totalCosto = costoMaterial + costoLaminado + costoAcabadosSum + costoEnvio + (isNaN(numOtroCosto) ? 0 : numOtroCosto);
-    setCostoTotal(totalCosto);
-  }, [cantidadPiezas, piezasPorPliego, merma, material, clientType, laminado, costoAcabado1, costoAcabado2, costoAcabado3, otroCosto, envio, costosEnvio, materialesPublico, materialesVIP]); // Dependencias de useCallback
-
-  // useEffect para recalcular automáticamente cuando cambian las dependencias
-  useEffect(() => {
-    calcular();
-  }, [calcular]);
-
-  const handleDownloadPdf = () => {
-    if (cardRef.current) {
-      html2canvas(cardRef.current, {
-        scale: 2, // Aumenta la escala para mejor calidad
-        useCORS: true, // Re-añadido para imágenes externas
-      }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210; // Ancho A4 en mm
-        const pageHeight = 297; // Alto A4 en mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft >= 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-        pdf.save(`cotizacion_${cliente || 'sin_cliente'}_${proyecto || 'sin_proyecto'}.pdf`);
-      });
-    } else {
-      alert('No se pudo generar el PDF. Asegúrese de que la tarjeta de cotización esté visible.');
-    }
+    doc.save(`cotizacion_${cliente || 'sin_cliente'}_${proyecto || 'sin_proyecto'}.pdf`);
   };
 
   return (
     <Container className="my-5">
-      <Card ref={cardRef}> {/* Añadimos la referencia aquí */}
+      <Card ref={cardRef}>
         <Card.Header className="text-center py-3 bg-primary text-white">
           <Image src="https://www.energrafica.com.mx/wp-content/uploads/2024/10/logo_energrafica.png" alt="Logo" fluid style={{ maxHeight: '80px', marginBottom: '10px' }} />
           <h3>Cotizador Digital</h3>
         </Card.Header>
         <Card.Body>
           <Form>
-            {/* Nuevo campo para Tipo de Cliente */}
             <Form.Group className="mb-3">
               <Form.Label>Tipo de Cliente</Form.Label>
               <Form.Select value={clientType} onChange={(e) => setClientType(e.target.value)}>
@@ -202,152 +236,69 @@ function App() {
               </Col>
             </Row>
 
-            <Row className="mb-3">
-              <Col>
-                <Form.Group>
-                  <Form.Label>Cantidad de Piezas</Form.Label>
-                  <Form.Control
-                    type="number"
-                    placeholder="Ingrese la cantidad de piezas"
-                    value={cantidadPiezas}
-                    onChange={(e) => setCantidadPiezas(e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-              <Col>
-                <Form.Group>
-                  <Form.Label>Piezas por Pliego</Form.Label>
-                  <Form.Control
-                    type="number"
-                    placeholder="Ingrese piezas por pliego"
-                    value={piezasPorPliego}
-                    onChange={(e) => setPiezasPorPliego(e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-              <Col>
-                <Form.Group>
-                  <Form.Label>Merma (Pliegos Extra)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    placeholder="Pliegos de merma"
-                    value={merma}
-                    onChange={(e) => setMerma(e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+            {/* Formulario para el producto actual */}
+            <div className="mb-4 p-3 border rounded">
+              <h4>Producto Actual</h4>
+              <ProductForm
+                product={currentProduct}
+                onProductChange={handleCurrentProductChange}
+                clientType={clientType}
+                materialesPublico={materialesPublico}
+                materialesVIP={materialesVIP}
+                costosAcabados={costosAcabados}
+                costosEnvio={costosEnvio}
+              />
+              <div className="mt-3 text-center">
+                <p className="lead mb-1">Pliegos del Producto Actual: <strong>{currentProduct.pliegosTotales.toFixed(0)}</strong></p>
+                <p className="lead">Costo del Producto Actual: <strong>${currentProduct.costoTotal.toFixed(2)}</strong></p>
+              </div>
+            </div>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Material</Form.Label>
-              <Form.Select value={material} onChange={(e) => setMaterial(e.target.value)}>
-                <option value="">Seleccione un material</option>
-                {/* Renderizar opciones de materiales según el tipo de cliente */}
-                {Object.keys(clientType === 'VIP' ? materialesVIP : materialesPublico).map((mat) => (
-                  <option key={mat} value={mat}>{mat}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Laminado</Form.Label>
-              <Form.Select value={laminado} onChange={(e) => setLaminado(e.target.value)}>
-                <option value="">Sin laminado</option>
-                <option value="FTE">Frente</option>
-                <option value="FTE y VTA">Frente y Vuelta</option>
-                <option value="Minimo">Mínimo</option>
-              </Form.Select>
-            </Form.Group>
-
-            {[
-              { acabado: acabado1, setAcabado: setAcabado1, costoAcabado: costoAcabado1, setCostoAcabado: setCostoAcabado1 },
-              { acabado: acabado2, setAcabado: setAcabado2, costoAcabado: costoAcabado2, setCostoAcabado: setCostoAcabado2 },
-              { acabado: acabado3, setAcabado: setAcabado3, costoAcabado: costoAcabado3, setCostoAcabado: setCostoAcabado3 },
-            ].map((item, index) => (
-              <Row className="mb-3" key={index}>
-                <Col>
-                  <Form.Group>
-                    <Form.Label>Acabado {index + 1}</Form.Label>
-                    <Form.Select
-                      value={item.acabado}
-                      onChange={(e) => {
-                        item.setAcabado(e.target.value);
-                        item.setCostoAcabado(''); // Reset cost when acabado type changes
-                      }}
-                    >
-                      <option value="">Sin acabado</option>
-                      {Object.keys(costosAcabados).map((acab) => (
-                        <option key={acab} value={acab}>{acab}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col>
-                  {item.acabado && costosAcabados[item.acabado] && (
-                    <Form.Group>
-                      <Form.Label>Costo Acabado {index + 1}</Form.Label>
-                      <Form.Select
-                        value={item.costoAcabado}
-                        onChange={(e) => item.setCostoAcabado(e.target.value)}
-                      >
-                        <option value="">Seleccione costo</option>
-                        {costosAcabados[item.acabado].map((costo) => (
-                          <option key={costo} value={costo}>{costo}</option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  )}
-                </Col>
-              </Row>
-            ))}
-
-            {/* Nuevo campo para 'Otro' costo y su descripción */}
-            <Row className="mb-3">
-              <Col>
-                <Form.Group>
-                  <Form.Label>Otro Costo (Valor)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    placeholder="Ingrese otro costo"
-                    value={otroCosto}
-                    onChange={(e) => setOtroCosto(e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-              <Col>
-                <Form.Group>
-                  <Form.Label>Otro Costo (Descripción)</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Descripción del costo"
-                    value={otroCostoDescripcion}
-                    onChange={(e) => setOtroCostoDescripcion(e.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Envío</Form.Label>
-              <Form.Select value={envio} onChange={(e) => setEnvio(e.target.value)}>
-                <option value="">Sin envío</option>
-                <option value="Envío 1">Envío 1 ($100)</option>
-                <option value="Envío 2">Envío 2 ($200)</option>
-                <option value="Envío 3">Envío 3 ($500)</option>
-              </Form.Select>
-            </Form.Group>
-
-            <div className="d-grid gap-2">
+            <div className="d-grid gap-2 mt-3">
+              <Button variant="primary" onClick={handleAddProductToQuote}>
+                Agregar Producto a Cotización
+              </Button>
+              <Button variant="danger" onClick={handleClearForm}>
+                Limpiar
+              </Button>
               <Button variant="secondary" onClick={handleDownloadPdf} className="mt-2">
                 Descargar Cotización (PDF)
               </Button>
             </div>
           </Form>
 
+          {/* Sección para mostrar productos cotizados */}
+          {quotedProducts.length > 0 && (
+            <div className="mt-4">
+              <h4>Productos Cotizados:</h4>
+              {quotedProducts.map((product, index) => (
+                <Card key={product.id} className="mb-2 p-2">
+                  <Card.Body>
+                    <p><strong>Producto {index + 1}:</strong></p>
+                    <ul>
+                      <li>Cantidad de Piezas: {product.cantidadPiezas}</li>
+                      <li>Piezas por Pliego: {product.piezasPorPliego}</li>
+                      <li>Merma: {product.merma || '0'}</li>
+                      <li>Material: {product.material}</li>
+                      <li>Laminado: {product.laminado || 'N/A'}</li>
+                      {product.acabado1 && <li>Acabado 1: {product.acabado1} ({product.costoAcabado1})</li>}
+                      {product.acabado2 && <li>Acabado 2: {product.acabado2} ({product.costoAcabado2})</li>}
+                      {product.acabado3 && <li>Acabado 3: {product.acabado3} ({product.costoAcabado3})</li>}
+                      {product.otroCosto && <li>Otro Costo: ${parseFloat(product.otroCosto).toFixed(2)} ({product.otroCostoDescripcion})</li>}
+                      {product.envio && <li>Envío: {product.envio}</li>}
+                      <li>Pliegos Totales: {product.pliegosTotales.toFixed(0)}</li>
+                      <li>Costo Individual: <strong>${product.costoTotal.toFixed(2)}</strong></li>
+                    </ul>
+                  </Card.Body>
+                </Card>
+              ))}
+            </div>
+          )}
+
           <div className="mt-4 text-center">
-            <h5>Resultados:</h5>
-            <p className="lead mb-1">Pliegos totales (incluyendo merma): <strong>{pliegosTotales.toFixed(0)}</strong></p>
-            <p className="lead">Costo total estimado: <strong>${costoTotal.toFixed(2)}</strong></p>
+            <h5>Resultados Generales de la Cotización:</h5>
+            <p className="lead mb-1">Pliegos totales (incluyendo merma): <strong>{totalPliegosGeneral.toFixed(0)}</strong></p>
+            <p className="lead">Costo total estimado: <strong>${totalCostoGeneral.toFixed(2)}</strong></p>
           </div>
         </Card.Body>
       </Card>
