@@ -121,7 +121,7 @@ function App() {
     // Sumar el 'Otro' costo al total
     const totalCosto = costoMaterial + costoLaminado + costoAcabadosSum + costoEnvio + (isNaN(numOtroCosto) ? 0 : numOtroCosto);
     setCostoTotal(totalCosto);
-  }, [cantidadPiezas, piezasPorPliego, merma, material, clientType, laminado, acabado1, costoAcabado1, acabado2, costoAcabado2, acabado3, costoAcabado3, otroCosto, envio]); // Dependencias de useCallback
+  }, [cantidadPiezas, piezasPorPliego, merma, material, clientType, laminado, acabado1, costoAcabado1, acabado2, costoAcabado2, acabado3, costoAcabado3, otroCosto, envio, costosEnvio, materialesPublico, materialesVIP]); // Dependencias de useCallback
 
   // useEffect para recalcular automáticamente cuando cambian las dependencias
   useEffect(() => {
