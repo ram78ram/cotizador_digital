@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotizador Plotter por Cliente</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --container-bg: #ffffff;
+            --text-color: #1c1e21;
+            --label-color: #606770;
+            --border-color: #dddfe2;
+            --input-bg: #ffffff;
+            --primary-btn-bg: red;
+            --secondary-btn-bg: red;
+            --secondary-btn-text: #4b4f56;
+            --highlight-bg: #e7f3ff;
+            --list-item-bg-odd: #f7f7f7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 2rem 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container { background-color: var(--container-bg); padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 90%; max-width: 500px; transition: background-color 0.3s; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .logo { height: 50px; }
+        h1 { color: var(--text-color); text-align: center; margin: 0; font-size: 1.5rem; }
+        .theme-switcher { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { display: none; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: red; }
+        input:checked + .slider:before { transform: translateX(20px); }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        label { display: block; margin-bottom: 0.5rem; color: var(--label-color); font-weight: 600; }
+        input, select { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-size: 1rem; background-color: var(--input-bg); color: var(--text-color); }
+        .radio-group { display: flex; gap: 1rem; padding: 0.5rem; background-color: var(--bg-color); border-radius: 6px; }
+        .radio-group input[type="radio"] { display: none; }
+        .radio-group label { flex: 1; text-align: center; padding: 0.5rem; border-radius: 4px; cursor: pointer; font-weight: 500; transition: background-color 0.2s, color 0.2s; }
+        .radio-group input[type="radio"]:checked + label { background-color: var(--primary-btn-bg); color: white; }
+        .controls { display: flex; gap: 1rem; margin-top: 1rem; }
+        button { flex-grow: 1; background-color: red; color: white; border: none; padding: 0.75rem; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; }
+        button.secondary { background-color: red; color: var(--secondary-btn-text); }
+        #current-result { margin-top: 1.5rem; padding: 1rem; background-color: var(--highlight-bg); border-radius: 6px; text-align: center; font-weight: 500; min-height: 20px; }
+        #items-list { margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 4px; }
+        .list-item:nth-child(odd) { background-color: var(--list-item-bg-odd); }
+        .item-details { flex-grow: 1; }
+        #grand-total { margin-top: 1rem; text-align: right; font-size: 1.5rem; font-weight: bold; color: var(--text-color); }
+        #export-section { margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; }
+        #export-section h2 { text-align: center; margin-bottom: 1rem; color: var(--label-color); }
+        .export-buttons { display: flex; gap: 1rem; }
+
+        @media print {
+            body { background-color: #fff; color: #000; padding: 0; }
+            .container { box-shadow: none; border: 1px solid #ccc; max-width: 100%; }
+            .theme-switcher, .form-group, .controls, #current-result, #export-section, .radio-group, h1:not(.print-title), .print-hide { display: none; }
+            .header { justify-content: center; }
+            .logo { filter: none !important; height: 60px; }
+            #items-list, #grand-total { margin-top: 1rem; }
+            #print-client-name { display: block; text-align: left; margin-bottom: 1.5rem; font-size: 1.2rem; }
+        }
+        #print-client-name { display: none; }
+        @media print {
+            #print-client-name { display: block !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <img src="https://www.energrafica.com.mx/wp-content/uploads/2024/10/logo_energrafica.png" alt="Logotipo" class="logo" id="company-logo">
+            
+        </div>
+
+        <div id="print-client-name"></div>
+
+        <h1 class="print-hide">Cotizador Plotter</h1>
+
+        <div class="form-group full-width">
+            <label for="nombreCliente">Nombre del Cliente:</label>
+            <input type="text" id="nombreCliente" placeholder="Escribe el nombre aquí">
+        </div>
+
+        <div class="form-group full-width">
+            <label>Tipo de Cliente:</label>
+            <div class="radio-group">
+                <input type="radio" id="clienteNormal" name="tipoCliente" value="normal" checked><label for="clienteNormal">Normal</label>
+                <input type="radio" id="clienteVip" name="tipoCliente" value="vip"><label for="clienteVip">VIP</label>
+            </div>
+        </div>
+        <div class="form-group full-width">
+            <label for="material">Material:</label>
+            <select id="material"></select>
+        </div>
+        <div class="form-grid">
+            <div class="form-group"><label for="cantidad">Cantidad:</label><input type="number" id="cantidad" value="1" min="1"></div>
+            <div class="form-group"><label for="ancho">Ancho (cm):</label><input type="number" id="ancho" placeholder="Ej: 50"></div>
+            <div class="form-group"><label for="alto">Alto (cm):</label><input type="number" id="alto" placeholder="Ej: 80"></div>
+        </div>
+        <div id="current-result"></div>
+        <div class="controls"><button onclick="agregarItem()">Agregar +</button><button class="secondary" onclick="limpiarFormulario()">Limpiar</button></div>
+        <div id="items-list"></div>
+        <div id="grand-total"></div>
+        <div id="export-section">
+            <h2>Exportar Cotización</h2>
+            <div class="export-buttons">
+                <button onclick="guardarPDF()">Guardar como PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const precios = { normal: {}, vip: {} };
+        let items = [];
+
+        const logoEl = document.getElementById('company-logo');
+        const selectMaterial = document.getElementById('material');
+        const inputAncho = document.getElementById('ancho');
+        const inputAlto = document.getElementById('alto');
+        const inputCantidad = document.getElementById('cantidad');
+        const currentResultEl = document.getElementById('current-result');
+        const itemsListEl = document.getElementById('items-list');
+        const grandTotalEl = document.getElementById('grand-total');
+        const nombreClienteEl = document.getElementById('nombreCliente');
+        const printClientNameEl = document.getElementById('print-client-name');
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCSVAndInitialize();
+        });
+
+        async function loadCSVAndInitialize() {
+            try {
+                const response = await fetch('/precios.csv');
+                const csvData = await response.text();
+                parseCSV(csvData);
+                populateMaterials();
+                setupEventListeners();
+                actualizarVista();
+            } catch (error) {
+                console.error('Error al cargar o procesar el archivo CSV:', error);
+                alert('No se pudieron cargar los precios. Por favor, revisa el archivo precios.csv y la consola para más detalles.');
+            }
+        }
+
+        function parseCSV(csvData) {
+            const lineas = csvData.trim().split(/\r?\n/).slice(2); // Compatible con Windows y Unix
+            lineas.forEach(linea => {
+                const valores = linea.split(',');
+                if (valores[0] && valores[1]) precios.normal[valores[0].trim()] = parseFloat(valores[1].replace('$', '')) || 0;
+                if (valores[3] && valores[4]) precios.vip[valores[3].trim()] = parseFloat(valores[4].replace('$', '')) || 0;
+            });
+        }
+
+        function populateMaterials() {
+            const materiales = new Set(Object.keys(precios.normal).concat(Object.keys(precios.vip)));
+            materiales.forEach(material => {
+                const option = document.createElement('option');
+                option.value = material;
+                option.textContent = material.charAt(0).toUpperCase() + material.slice(1);
+                selectMaterial.appendChild(option);
+            });
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('input[name="tipoCliente"]').forEach(r => r.addEventListener('change', calcularSubtotal));
+            [selectMaterial, inputAncho, inputAlto, inputCantidad].forEach(el => el.addEventListener('input', calcularSubtotal));
+        }
+
+        function getPrecioActual() {
+            const tipoCliente = document.querySelector('input[name="tipoCliente"]:checked').value;
+            const material = selectMaterial.value;
+            return precios[tipoCliente][material] || 0;
+        }
+
+        function calcularSubtotal() {
+            const precioM2 = getPrecioActual();
+            const anchoCm = parseFloat(inputAncho.value);
+            const altoCm = parseFloat(inputAlto.value);
+            const cantidad = parseInt(inputCantidad.value);
+            if (isNaN(anchoCm) || isNaN(altoCm) || isNaN(cantidad) || anchoCm <= 0 || altoCm <= 0 || cantidad <= 0) {
+                currentResultEl.innerHTML = '';
+                return;
+            }
+            const subtotal = (anchoCm / 100) * (altoCm / 100) * precioM2 * cantidad;
+            currentResultEl.innerHTML = `<strong>Subtotal:</strong> ${subtotal.toFixed(2)}`;
+        }
+
+        function agregarItem() {
+            const precioM2 = getPrecioActual();
+            const materialName = selectMaterial.value;
+            const anchoCm = parseFloat(inputAncho.value);
+            const altoCm = parseFloat(inputAlto.value);
+            const cantidad = parseInt(inputCantidad.value);
+
+            if (isNaN(anchoCm) || isNaN(altoCm) || isNaN(cantidad) || anchoCm <= 0 || altoCm <= 0 || cantidad <= 0) {
+                alert('Por favor, ingresa valores válidos.');
+                return;
+            }
+
+            const subtotal = (anchoCm / 100) * (altoCm / 100) * precioM2 * cantidad;
+            items.push({ material: materialName, ancho: anchoCm, alto: altoCm, cantidad: cantidad, precio: subtotal });
+            limpiarFormulario();
+            actualizarVista();
+        }
+
+        function limpiarFormulario() {
+            inputAncho.value = '';
+            inputAlto.value = '';
+            inputCantidad.value = '1';
+            currentResultEl.innerHTML = '';
+            inputAncho.focus();
+        }
+
+        function actualizarVista() {
+            itemsListEl.innerHTML = '';
+            let totalGeneral = 0;
+            items.forEach((item, index) => {
+                totalGeneral += item.precio;
+                const itemEl = document.createElement('div');
+                itemEl.classList.add('list-item');
+                const materialText = item.material.charAt(0).toUpperCase() + item.material.slice(1);
+                itemEl.innerHTML = `<div class="item-details"><strong>${item.cantidad} x ${materialText}</strong><br><small>${item.ancho}cm x ${item.alto}cm</small></div><span>${item.precio.toFixed(2)}</span>`;
+                itemsListEl.appendChild(itemEl);
+            });
+            grandTotalEl.innerHTML = items.length > 0 ? `<strong>Total:</strong> ${totalGeneral.toFixed(2)}` : '';
+        }
+
+        function guardarPDF() {
+            const nombreCliente = nombreClienteEl.value;
+            if (nombreCliente) {
+                printClientNameEl.innerHTML = `<strong>Cliente:</strong> ${nombreCliente}`;
+            } else {
+                printClientNameEl.innerHTML = '';
+            }
+            window.print();
+        }
+    </script>
+
+</body>
+</html>

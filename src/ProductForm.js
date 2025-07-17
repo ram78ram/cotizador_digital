@@ -127,20 +127,17 @@ function ProductForm({ product, onProductChange, clientType, materialesPublico, 
             </Form.Group>
           </Col>
           <Col>
-            {item.value && costosAcabados[item.value] && (
+            {item.value && (
               <Form.Group>
                 <Form.Label>Costo {item.label}</Form.Label>
-                <Form.Select
+                <Form.Control
+                  type="number"
                   name={item.costoName}
+                  placeholder="Costo"
                   value={item.costoValue}
                   onChange={handleInputChange}
-                  className={!item.costoValue ? 'is-invalid' : ''} // Resaltar si no se ha seleccionado un costo
-                >
-                  <option value="">Seleccione costo</option>
-                  {costosAcabados[item.value].map((costo) => (
-                    <option key={costo} value={costo}>{costo}</option>
-                  ))}
-                </Form.Select>
+                  className={item.value && item.costoValue === '' ? 'is-invalid' : ''} // Resaltar si se ha seleccionado un acabado pero el costo está vacío
+                />
               </Form.Group>
             )}
           </Col>
@@ -150,14 +147,14 @@ function ProductForm({ product, onProductChange, clientType, materialesPublico, 
       <Row className="mb-3">
         <Col>
           <Form.Group>
-            <Form.Label>Otro Costo (Valor)</Form.Label>
-            <Form.Control type="number" name="otroCosto" placeholder="Ingrese otro costo" value={product.otroCosto} onChange={handleInputChange} />
+            <Form.Label>Otro Costo (Descripción)</Form.Label>
+            <Form.Control type="text" name="otroCostoDescripcion" placeholder="Descripción del costo" value={product.otroCostoDescripcion} onChange={handleInputChange} />
           </Form.Group>
         </Col>
         <Col>
           <Form.Group>
-            <Form.Label>Otro Costo (Descripción)</Form.Label>
-            <Form.Control type="text" name="otroCostoDescripcion" placeholder="Descripción del costo" value={product.otroCostoDescripcion} onChange={handleInputChange} />
+            <Form.Label>Otro Costo (Valor)</Form.Label>
+            <Form.Control type="number" name="otroCosto" placeholder="Ingrese otro costo" value={product.otroCosto} onChange={handleInputChange} />
           </Form.Group>
         </Col>
       </Row>
